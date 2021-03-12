@@ -195,7 +195,7 @@ function intermediateDecode() {
 }
 
 function feedAudioContent(chunk) {
-	recordedAudioLength += (chunk.length / 2) * (1 / bitrate) * 1000;
+	recordedAudioLength += (chunk.length / 2) * (1 / 16000) * 1000;
 	modelStream.feedAudioContent(chunk);
 }
 
@@ -211,9 +211,9 @@ function startMicrophone(callback) {
 		createStream();
 	
 		var microphone = mic({
-			rate: bitrate+"", // as a string
+			rate: "8000", // as a string
 			channels: '1',
-			debug: false,
+			debug: true,
 			fileType: 'wav'
 		});
 		
@@ -270,5 +270,7 @@ function onRecognize(results) {
 // 	file.pipe(reader);
 // }
 // else {
-	startMicrophone(onRecognize);
+	setTimeout(() => {
+		startMicrophone(onRecognize);
+	}, 10000);
 // }
