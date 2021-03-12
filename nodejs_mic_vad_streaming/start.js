@@ -2,6 +2,7 @@ const DeepSpeech = require('deepspeech');
 const VAD = require('node-vad');
 const mic = require('mic');
 const fs = require('fs');
+const path = require('path');
 const wav = require('wav');
 // const Speaker = require('speaker');
 
@@ -10,10 +11,12 @@ if (process.env.DEEPSPEECH_MODEL) {
 	DEEPSPEECH_MODEL = process.env.DEEPSPEECH_MODEL;
 }
 else {
-	DEEPSPEECH_MODEL = '../de-models/de-model';
+	DEEPSPEECH_MODEL = path.normalize('../de-models/de-model');
 }
 
 let SILENCE_THRESHOLD = 1000; // how many milliseconds of inactivity before processing the audio
+
+const bitrate = 16000;
 
 // const VAD_MODE = VAD.Mode.NORMAL;
 // const VAD_MODE = VAD.Mode.LOW_BITRATE;
@@ -40,7 +43,7 @@ let silenceBuffers = [];
 let firstChunkVoice = false;
 
 function processAudioStream(data, callback) {
-	vad.processAudio(data, 16000).then((res) => {
+	vad.processAudio(data, bitrate).then((res) => {
 		if (firstChunkVoice) {
 			firstChunkVoice = false;
 			processVoice(data);
@@ -159,7 +162,11 @@ function processVoice(data) {
 }
 
 function createStream() {
-	modelStream = englishModel.createStream();
+	try {
+		modelStream = englishModel.createStream();
+	} catch(error) {
+		console.error({modeError: error});
+	}
 	recordedChunks = 0;
 	recordedAudioLength = 0;
 }
@@ -188,35 +195,44 @@ function intermediateDecode() {
 }
 
 function feedAudioContent(chunk) {
-	recordedAudioLength += (chunk.length / 2) * (1 / 16000) * 1000;
+	recordedAudioLength += (chunk.length / 2) * (1 / bitrate) * 1000;
 	modelStream.feedAudioContent(chunk);
 }
 
 let microphone;
 function startMicrophone(callback) {
+	console.log('startMicrophone');
 	if (microphone) {
 		console.log('microphone exists');
 		return;
 	}
+
+	try {
+		createStream();
 	
-	createStream();
-	
-	var microphone = mic({
-		rate: '16000',
-		channels: '1',
-		debug: false,
-		fileType: 'wav'
-	});
-	
-	var stream = microphone.getAudioStream();
-	
-	stream.on('data', function(data) {
-		processAudioStream(data, (results) => {
-			callback(results);
+		var microphone = mic({
+			rate: bitrate+"", // as a string
+			channels: '1',
+			debug: false,
+			fileType: 'wav'
 		});
-	});
+		
+		var stream = microphone.getAudioStream();
+		
+		stream.on('data', function(data) {
+			processAudioStream(data, (results) => {
+				callback(results);
+			});
+		});
+
+		microphone.start();
+	} catch(error) {
+		console.error({errorCreatingAudioStream: error});
+		throw error;
+	}
 	
-	microphone.start();
+
+	
 }
 
 function stopMicrophone() {
