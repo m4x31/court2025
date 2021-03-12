@@ -205,6 +205,7 @@ function startMicrophone(callback) {
 		rate: '16000',
 		channels: '1',
 		debug: false,
+		bitwidth: '16',
 		fileType: 'wav'
 	});
 	
